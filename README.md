@@ -210,9 +210,107 @@ const apiUrl = import.meta.env.PUBLIC_API_URL;
 
 Astroは静的サイトを生成するため、多くのホスティングサービスにデプロイ可能：
 
-- **Netlify**: `npm run build`を実行し、`dist/`フォルダをデプロイ
-- **Vercel**: Astroプロジェクトを自動検出
-- **GitHub Pages**: GitHub Actionsを使用して自動デプロイ
+#### Netlify
+`npm run build`を実行し、`dist/`フォルダをデプロイ
+
+#### Vercel
+Astroプロジェクトを自動検出
+
+#### GitHub Pages（GitHub Actionsを使用した自動デプロイ）
+
+1. **GitHub Pagesの有効化**
+   - リポジトリの Settings → Pages へ移動
+   - Source を「GitHub Actions」に設定
+
+2. **ワークフローファイルの作成**
+   
+   `.github/workflows/deploy.yml`を作成：
+
+   ```yaml
+   name: Deploy to GitHub Pages
+
+   on:
+     # mainブランチへのプッシュ時にトリガー
+     push:
+       branches: [ main ]
+     # 手動実行を許可
+     workflow_dispatch:
+
+   # GITHUB_TOKENの権限を設定
+   permissions:
+     contents: read
+     pages: write
+     id-token: write
+
+   # 同時実行を制御
+   concurrency:
+     group: "pages"
+     cancel-in-progress: false
+
+   jobs:
+     build:
+       runs-on: ubuntu-latest
+       steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+           
+         - name: Setup Node
+           uses: actions/setup-node@v4
+           with:
+             node-version: "20"
+             
+         - name: Install dependencies
+           run: npm ci
+           
+         - name: Build with Astro
+           run: npm run build
+           
+         - name: Upload artifact
+           uses: actions/upload-pages-artifact@v3
+           with:
+             path: ./dist
+
+     deploy:
+       environment:
+         name: github-pages
+         url: ${{ steps.deployment.outputs.page_url }}
+       runs-on: ubuntu-latest
+       needs: build
+       steps:
+         - name: Deploy to GitHub Pages
+           id: deployment
+           uses: actions/deploy-pages@v4
+   ```
+
+3. **サイトのベースパスの設定（サブディレクトリでホストする場合）**
+   
+   リポジトリ名が`astro-basic`の場合、`astro.config.mjs`を更新：
+
+   ```js
+   import { defineConfig } from 'astro/config';
+
+   export default defineConfig({
+     site: 'https://yourusername.github.io',
+     base: '/astro-basic',
+   });
+   ```
+
+4. **カスタムドメインの設定（オプション）**
+   
+   カスタムドメインを使用する場合は、`public/CNAME`ファイルを作成：
+   
+   ```
+   yourdomain.com
+   ```
+
+5. **デプロイの確認**
+   - コミット＆プッシュ後、Actions タブでワークフローの実行を確認
+   - 成功すると `https://yourusername.github.io/astro-basic/` でサイトが公開される
+
+**トラブルシューティング:**
+- ビルドエラーの場合は、ローカルで`npm run build`が成功することを確認
+- 404エラーの場合は、`base`設定が正しいことを確認
+- 権限エラーの場合は、リポジトリのSettings → Actions → General → Workflow permissionsを確認
 
 ## 👀 もっと詳しく知りたいですか？
 
